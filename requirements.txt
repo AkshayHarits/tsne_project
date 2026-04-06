@@ -1,0 +1,12 @@
+# Core Math & Autograd
+numpy
+pandas
+# Visualization
+matplotlib
+
+# Datasets, PCA, and Barnes-Hut t-SNE Baseline
+scikit-learn
+
+# Astronomy specific (For Module B: SDSS Data & SIMBAD Cross-Matching)
+astropy
+astroquery
