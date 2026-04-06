@@ -1,0 +1,31 @@
+# --- Data Files (CRITICAL for IITH Cluster/GitHub limits) ---
+# These are too large for GitHub (70k rows ≈ 450MB)
+*.csv
+*.npy
+*.npz
+*.arff
+
+# --- Python Environment ---
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+bin/
+lib/
+
+# --- Plots and Figures ---
+# Usually, we keep code on Git and generate plots locally. 
+# If you WANT to share your plots, comment out the line below.
+*.png
+*.jpg
+*.jpeg
+*.pdf
+
+# --- IDE and OS Specific ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
