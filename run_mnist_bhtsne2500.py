@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import pandas as pd
 from sklearn.datasets import fetch_openml
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
@@ -37,7 +38,7 @@ def main():
     # RUN THE ALGORITHM (scikit-learn Barnes-Hut)
     # ---------------------------------------------------------
     print("Running Barnes-Hut t-SNE on 2,500 points...")
-    t0 = time.time()
+    t1 = time.time()
     
     tsne_model = TSNE(
         n_components=2, 
@@ -49,7 +50,29 @@ def main():
     )
     
     Y = tsne_model.fit_transform(X_pca)
-    print(f"t-SNE completed in {time.time() - t0:.2f} seconds.")
+    print(f"t-SNE completed in {time.time() - t1:.2f} seconds.")
+
+    # ---------------------------------------------------------
+    # SINGLE FILE SAVING LOGIC (All-in-One CSV)
+    # ---------------------------------------------------------
+    filename = "data_mnist_2500_bhtsne.csv"
+    print(f"Saving sampled and mapped points to {filename}...")
+
+    # Define column names
+    pixel_cols = [f"pixel_{i}" for i in range(X.shape[1])]
+    mapped_cols = ["tsne_1", "tsne_2"]
+    
+    # Create DataFrames for the original pixels, the 2D output, and labels
+    df_original = pd.DataFrame(X, columns=pixel_cols)
+    df_mapped = pd.DataFrame(Y, columns=mapped_cols)
+    df_labels = pd.DataFrame(labels, columns=["label"])
+    
+    # Concatenate horizontally: [784 Pixels] | [2 t-SNE Coords] | [1 Label]
+    final_df = pd.concat([df_original, df_mapped, df_labels], axis=1)
+
+    # Save to CSV (Overwrites if exists)
+    final_df.to_csv(filename, index=False)
+    print(f"Successfully saved to: {filename}")
 
     # ---------------------------------------------------------
     # PLOT THE RESULTS
