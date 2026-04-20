@@ -83,8 +83,8 @@ def pca(X=np.array([]), no_dims=50):
     Y = np.dot(X, M[:, 0:no_dims])
     return Y
 
-
-def tsne(X=np.array([]), no_dims=2, initial_dims=50, perplexity=30.0, nu=1.0):
+# --- MODIFIED: Added dist_type to the signature for modular routing ---
+def tsne(X=np.array([]), no_dims=2, initial_dims=50, perplexity=30.0, nu=1.0, dist_type='t-distribution', snapshot_iters=None):
     """
         Runs parameterized t-SNE on the dataset. 
         `nu` is the degrees of freedom for the heavy-tailed distribution.
@@ -99,7 +99,13 @@ def tsne(X=np.array([]), no_dims=2, initial_dims=50, perplexity=30.0, nu=1.0):
         return -1
 
     # Initialize variables
-    X = pca(X, initial_dims).real # X is now a PCA-reduced matrix (n x 50)
+    # --- MODIFIED: Added check to skip PCA if the orchestrator already did it ---
+    if X.shape[1] > initial_dims:
+        X = pca(X, initial_dims).real # X is now a PCA-reduced matrix (n x 50)
+    else:
+        print("Data is already PCA-reduced. Skipping internal PCA step.")
+    # ----------------------------------------------------------------------------
+    
     (n, d) = X.shape
     max_iter = 500
     #based on observing convergence i am doing an early stopping to 500 iterations but initially i kept it at 1000
@@ -142,12 +148,14 @@ def tsne(X=np.array([]), no_dims=2, initial_dims=50, perplexity=30.0, nu=1.0):
     P = x2p(X, 1e-5, perplexity)
     P = P + np.transpose(P)
     P = P / np.sum(P)
-    P = P * 4. # early exaggeration
+    P = P * 4.#early exaggeration default is 4 please change it back to 4 if it is not 4..we need to divide by 4 later 
     P = np.maximum(P, 1e-12)
 
     # Autograd mask to zero out the diagonal
     diag_mask = np.ones((n, n), dtype=np.float64)
     np.fill_diagonal(diag_mask, 0.0)
+
+    print(f"\n--- Starting Autograd Descent [{dist_type} | nu={nu} | Perp={perplexity}] ---")
 
     # Run iterations
     for iter in range(max_iter):
@@ -162,9 +170,29 @@ def tsne(X=np.array([]), no_dims=2, initial_dims=50, perplexity=30.0, nu=1.0):
         sum_Y = Y_sq.sum(axis=1, keepdims=True)
         D = sum_Y + sum_Y.T - (Y_val @ Y_val.T) * 2.0
         
-        # 2. Apply the heavy-tailed distribution kernel
-        exponent = -(nu + 1.0) / 2.0
-        num = (D * (1.0 / nu) + 1.0) ** exponent
+        # -------------------------------------------------------------
+        # --- MODIFIED: Distribution Router for Testbed ---
+        # -------------------------------------------------------------
+        if dist_type == 't-distribution':
+            # Parameterized Student's t-distribution
+            exponent = -(nu + 1.0) / 2.0
+            num = (D * (1.0 / nu) + 1.0) ** exponent
+            
+        elif dist_type == 'power-law':
+            # Decoupled Inverse Power-Law (Extreme heavy tails)
+            num = (D + 1.0) ** -nu
+            
+        elif dist_type == 'gaussian':
+            # Standard SNE (Light tails, causes crowding)
+            num = (-D).exp()
+            
+        elif dist_type == 'logistic':
+            # Logistic SNE (Math failure state / vanishing gradients)
+            num = (D.exp() + 1.0) ** -1.0
+            
+        else:
+            raise ValueError(f"Unknown dist_type: {dist_type}. Check orchestrator script.")
+        # -------------------------------------------------------------
         
         # 3. Mask out the diagonal 
         num_masked = num * diag_mask
@@ -213,7 +241,23 @@ def tsne(X=np.array([]), no_dims=2, initial_dims=50, perplexity=30.0, nu=1.0):
         # Force Python to flush the RAM
         gc.collect()
 
+    snapshots={}
 
+    # Run iterations
+    for iter in range(max_iter):
+        
+        # ... [All your existing forward/backward/momentum code stays exactly the same here] ...
+        
+        # ---> Add this at the very end of the loop (inside the loop):
+        if snapshot_iters is not None and iter in snapshot_iters:
+            snapshots[iter] = Y.copy() # Save a copy of the exact coordinates at this moment
+            print(f"📸 Captured snapshot at iteration {iter}")
+
+    # ---> Modify the return statement at the end of the function:
+    if snapshot_iters is not None:
+        snapshots['final'] = Y.copy()
+        return snapshots
+    
     return Y
 
 
@@ -234,7 +278,7 @@ def tsne(X=np.array([]), no_dims=2, initial_dims=50, perplexity=30.0, nu=1.0):
 #
 # # 2. Run the algorithm to get the (N x 2) low-dimensional embeddings
 # #    nu=1.0 is standard t-SNE. Lower nu for heavier tails.
-# Y_low_dim = tsne(X_high_dim, no_dims=2, initial_dims=50, perplexity=30.0, nu=0.5)
+# Y_low_dim = tsne(X_high_dim, no_dims=2, initial_dims=50, perplexity=30.0, nu=0.5, dist_type='t-distribution')
 #
 # # 3. Plot the results
 # plt.scatter(Y_low_dim[:, 0], Y_low_dim[:, 1])

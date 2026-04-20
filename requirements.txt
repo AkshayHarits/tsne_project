@@ -1,12 +1,20 @@
-# Core Math & Autograd
+# --- Core Math & Data Analysis ---
 numpy
 pandas
-# Visualization
-matplotlib
+scipy
 
-# Datasets, PCA, and Barnes-Hut t-SNE Baseline
+# --- Visualization ---
+matplotlib
+seaborn
+
+# --- Machine Learning & Manifold Learning ---
+# (Includes PCA, t-SNE, and DBSCAN)
 scikit-learn
 
-# Astronomy specific (For Module B: SDSS Data & SIMBAD Cross-Matching)
+# --- Astronomy Specific ---
+# (For FITS handling, coordinate systems, and SIMBAD)
 astropy
 astroquery
+
+# --- Progress Tracking & Utilities ---
+tqdm
